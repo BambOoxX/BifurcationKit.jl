@@ -27,7 +27,9 @@ module MakieExt
                            BK_Makie,
                            plotAllDCBranch,
                            plot_DCont_branch,
-                           AbstractResult
+                           AbstractResult,
+                           branchplot,
+                           branchplot!
     include("plot.jl")
 
 function __init__()

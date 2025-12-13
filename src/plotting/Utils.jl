@@ -99,3 +99,6 @@ function plot_periodic_potrap end
 function plot_periodic_shooting! end
 function plot_periodic_shooting end
 function plot_eigenvals end
+
+function branchplot end
+function branchplot! end

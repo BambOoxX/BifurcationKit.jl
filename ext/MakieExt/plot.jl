@@ -31,6 +31,84 @@ function isplit(x::AbstractVector{T}, indices::AbstractVector{<: Integer}, split
     end
 end
 
+Makie.@recipe(BranchPlot, contres) do scene
+    Attributes(
+        plotfold=false,
+        plotstability=true,
+        plotspecialpoints=true,
+        putspecialptlegend=true,
+        filterspecialpoints=false,
+        vars=nothing,
+        linewidthunstable=1,
+        linewidthstable=3,
+        plotcirclesbif=true,
+        branchlabel=nothing,
+        branchcolor=nothing,
+        applytoY=identity,
+        applytoX=identity
+    )
+end
+
+function Makie.plot!(plt::BranchPlot{<:Tuple{AbstractResult{Tkind,Tprob}}}) where {Tkind,Tprob}
+
+    # names for axis labels
+    map!(plt.attributes, [:contres, :vars], [:ind1, :ind2]) do contres, vars
+        ind1, ind2 = get_plot_vars(contres, vars)
+        xlab, ylab = get_axis_labels(ind1, ind2, contres)
+        plt.xlabel = xlab
+        plt.ylabel = ylab
+        return ind1, ind2
+    end
+
+    # stability linewidth
+    map!(plt.attributes, [:contres, :plotstability, :ind1, :ind2, :applytoX, :applytoY, :linewidthunstable, :linewidthstable], [:indices, :linewidth, :xbranch, :ybranch]) do contres, plotstability, ind1, ind2, applytoX, applytoY, linewidthunstable, linewidthstable
+        if Tkind <: TwoParamCont
+            linewidthstable = 1
+        end
+        linewidth = linewidthunstable
+        indices = Int[sp.idx for sp in contres.specialpoint if sp.type !== :endpoint]
+        # isplit required to work with CairoMakie due to change of linewidth for stability
+        if _hasstability(contres) && plotstability
+            v = map(x -> x ? linewidthstable : linewidthunstable, contres.stable)
+            linewidth = isplit(v, indices, false)
+        end
+        xbranch = isplit(map(applytoX, getproperty(contres.branch, ind1)), indices)
+        ybranch = isplit(map(applytoY, getproperty(contres.branch, ind2)), indices)
+
+        return indices, linewidth, xbranch, ybranch
+    end
+
+    lift(plt.branchlabel) do bl
+        @info bl
+    end
+
+    lines!(plt, plt.xbranch, plt.ybranch; plt.linewidth, label=plt.branchlabel, color=plt.branchcolor)
+
+
+    # display bifurcation points
+    map!(plt.attributes, [:contres, :plotfold, :plotspecialpoints, :plotcirclesbif, :filterspecialpoints, :ind1, :ind2, :applytoX, :applytoY], [:xbifpt, :ybifpt, :bifptmarker, :bifptcolor]) do contres, plotfold, plotspecialpoints, plotcirclesbif, filterspecialpoints, ind1, ind2, applytoX, applytoY
+        bifpt = filter(x -> (x.type != :none) && (x.type != :endpoint) && (plotfold || x.type != :fold) && (x.idx <= length(contres) - 1), contres.specialpoint)
+        if length(bifpt) >= 1 && plotspecialpoints #&& (ind1 == :param)
+            if filterspecialpoints
+                bifpt = filterBifurcations(bifpt)
+            end
+            xbifpt = [applytoX(getproperty(contres[pt.idx], ind1)) for pt in bifpt]
+            ybifpt = [applytoY(getproperty(contres[pt.idx], ind2)) for pt in bifpt]
+            bifptmarker = map(x -> (x.status == :guess) && (plotcirclesbif == false) ? :rect : :circle, bifpt)
+            bifptcolor = map(x -> get_color(x.type), bifpt)
+        end
+        return xbifpt, ybifpt, bifptmarker, bifptcolor
+    end
+    scatter!(plt, plt.xbifpt, plt.ybifpt; marker=plt.bifptmarker, markersize=10, color=plt.bifptcolor, label="Bifurcation points")
+
+    # Return the plot object
+    return plt
+end
+
+function Makie.get_plots(plot::BranchPlot)
+    return plot.plots
+end
+
 """
 $(SIGNATURES)
 
