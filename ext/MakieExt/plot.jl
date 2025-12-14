@@ -78,29 +78,31 @@ function Makie.plot!(plt::BranchPlot{<:Tuple{AbstractResult{Tkind,Tprob}}}) wher
         return indices, linewidth, xbranch, ybranch
     end
 
-    lift(plt.branchlabel) do bl
-        @info bl
-    end
-
     lines!(plt, plt.xbranch, plt.ybranch; plt.linewidth, label=plt.branchlabel, color=plt.branchcolor)
 
+    # TODO: to improve
+    btypes = [:bp, :fold, :hopf, :nd, :cusp, :gh, :bt, :zh, :hh, :ns, :pd, :R1, :R2, :R3, :R4, :foldFlip, :foldNS, :pdNS, :gpd, :nsns, :ch]
 
     # display bifurcation points
-    map!(plt.attributes, [:contres, :plotfold, :plotspecialpoints, :plotcirclesbif, :filterspecialpoints, :ind1, :ind2, :applytoX, :applytoY], [:xbifpt, :ybifpt, :bifptmarker, :bifptcolor]) do contres, plotfold, plotspecialpoints, plotcirclesbif, filterspecialpoints, ind1, ind2, applytoX, applytoY
-        bifpt = filter(x -> (x.type != :none) && (x.type != :endpoint) && (plotfold || x.type != :fold) && (x.idx <= length(contres) - 1), contres.specialpoint)
-        if length(bifpt) >= 1 && plotspecialpoints #&& (ind1 == :param)
+    for btype in btypes
+        map!(plt.attributes, [:contres, :plotspecialpoints, :plotfold, :plotcirclesbif, :filterspecialpoints, :ind1, :ind2, :applytoX, :applytoY], [Symbol("xbifpt_$(btype)"), Symbol("ybifpt_$(btype)"), Symbol("bifptmarker_$(btype)"), Symbol("bifptcolor_$(btype)"), Symbol("bifptvisible_$(btype)"), Symbol("bifptlabel_$(btype)")]) do contres, plotspecialpoints, plotfold, plotcirclesbif, filterspecialpoints, ind1, ind2, applytoX, applytoY
+            bifpt = filter(x -> x.type === btype && (plotfold || x.type != :fold) && (x.idx <= length(contres) - 1), contres.specialpoint)
             if filterspecialpoints
                 bifpt = filterBifurcations(bifpt)
             end
-            xbifpt = [applytoX(getproperty(contres[pt.idx], ind1)) for pt in bifpt]
-            ybifpt = [applytoY(getproperty(contres[pt.idx], ind2)) for pt in bifpt]
+            visible = plotspecialpoints && !isempty(bifpt)
+            xbifpt = Float64[applytoX(getproperty(contres[pt.idx], ind1)) for pt in bifpt]
+            ybifpt = Float64[applytoY(getproperty(contres[pt.idx], ind2)) for pt in bifpt]
+            if isempty(bifpt)
+                bifptmarker = :circle
+            else
             bifptmarker = map(x -> (x.status == :guess) && (plotcirclesbif == false) ? :rect : :circle, bifpt)
-            bifptcolor = map(x -> get_color(x.type), bifpt)
+            end
+            bifptcolor = get_color(btype)
+            return xbifpt, ybifpt, bifptmarker, bifptcolor, visible, (visible ? string(btype) : nothing)
         end
-        return xbifpt, ybifpt, bifptmarker, bifptcolor
+        scatter!(plt, plt[Symbol("xbifpt_$(btype)")], plt[Symbol("ybifpt_$(btype)")]; marker=plt[Symbol("bifptmarker_$(btype)")], markersize=10, color=plt[Symbol("bifptcolor_$(btype)")], visible=plt[Symbol("bifptvisible_$(btype)")], label=plt[Symbol("bifptlabel_$(btype)")])
     end
-    scatter!(plt, plt.xbifpt, plt.ybifpt; marker=plt.bifptmarker, markersize=10, color=plt.bifptcolor, label="Bifurcation points")
-
     # Return the plot object
     return plt
 end
@@ -266,13 +268,13 @@ function plot(contres::AbstractBranchResult; kP...)
     fig = Figure()
     ax = fig[1, 1] = Axis(fig, xlabel = String(xlab), ylabel = String(ylab), tellheight = true)
 
-    plot!(ax, contres; kP...)
+    branchplot!(ax, contres; kP...)
     fig, ax
 end
 
 plot(brdc::DCResult; kP...) = plot(brdc.branches...; kP...)
 
-function plot(brs::AbstractBranchResult...; branchlabel = ["$i" for i = 1:length(brs)], kP...)
+function plot(brs::AbstractBranchResult...; branchlabel=["$i" for i = 1:length(brs)], branchcolor=Makie.wong_colors(length(brs)),kP...)
     if length(brs) == 0
         return
     end
@@ -280,7 +282,7 @@ function plot(brs::AbstractBranchResult...; branchlabel = ["$i" for i = 1:length
     ax1 = fig[1, 1] = Axis(fig)
 
     for (id, contres) in pairs(brs)
-        plot!(ax1, contres; branchlabel = branchlabel[id], kP...)
+        branchplot!(ax1, contres; branchlabel = branchlabel[id], branchcolor=branchcolor[id], kP...)
     end
     Makie.axislegend(ax1, merge = true, unique = true)
     display(fig)
