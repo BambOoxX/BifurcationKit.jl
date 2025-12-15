@@ -80,11 +80,8 @@ function Makie.plot!(plt::BranchPlot{<:Tuple{AbstractResult{Tkind,Tprob}}}) wher
 
     lines!(plt, plt.xbranch, plt.ybranch; plt.linewidth, label=plt.branchlabel, color=plt.branchcolor)
 
-    # TODO: to improve
-    btypes = [:bp, :fold, :hopf, :nd, :cusp, :gh, :bt, :zh, :hh, :ns, :pd, :R1, :R2, :R3, :R4, :foldFlip, :foldNS, :pdNS, :gpd, :nsns, :ch]
-
     # display bifurcation points
-    for btype in btypes
+    for btype in bptypes
         map!(plt.attributes, [:contres, :plotspecialpoints, :plotfold, :plotcirclesbif, :filterspecialpoints, :ind1, :ind2, :applytoX, :applytoY], [Symbol("xbifpt_$(btype)"), Symbol("ybifpt_$(btype)"), Symbol("bifptmarker_$(btype)"), Symbol("bifptcolor_$(btype)"), Symbol("bifptvisible_$(btype)"), Symbol("bifptlabel_$(btype)")]) do contres, plotspecialpoints, plotfold, plotcirclesbif, filterspecialpoints, ind1, ind2, applytoX, applytoY
             bifpt = filter(x -> x.type === btype && (plotfold || x.type != :fold) && (x.idx <= length(contres) - 1), contres.specialpoint)
             if filterspecialpoints

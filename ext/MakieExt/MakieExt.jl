@@ -29,7 +29,8 @@ module MakieExt
                            plot_DCont_branch,
                            AbstractResult,
                            branchplot,
-                           branchplot!
+                           branchplot!,
+                           bptypes
     include("plot.jl")
 
 function __init__()

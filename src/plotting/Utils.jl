@@ -44,6 +44,8 @@ const colorbif = Dict(:fold => :black,
                         :gpd => :darksalmon,
                         :user => :darkgoldenrod)
 
+const bptypes = sort(collect(keys(colorbif)); by=x -> lowercase(string(x)))
+
 function get_color(sp)
     if sp in keys(colorbif)
         return colorbif[sp]
